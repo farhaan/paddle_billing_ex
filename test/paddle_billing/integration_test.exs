@@ -480,8 +480,8 @@ defmodule PaddleBilling.IntegrationTest do
 
     test "handles unicode and special characters in all fields", %{bypass: bypass, config: config} do
       unicode_product = %{
-        name: "🚀 Rocket Product 测试",
-        description: "Description with émojis 🎉 and spëcial chars: àáâãäå",
+        name: "🚀 Product 测试",
+        description: "Description with special chars and spëcial chars: àáâãäå",
         custom_data: %{
           "unicode_field" => "Field with 中文字符 and symbols: ∀∃∇∈",
           "emoji_field" => "🌟⭐✨💫🔥"

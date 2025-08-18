@@ -218,7 +218,9 @@ This library covers the full Paddle API:
 
 ## Testing
 
-Run the test suite:
+### Unit Tests
+
+Run the unit test suite:
 
 ```bash
 mix test
@@ -231,6 +233,18 @@ mix test --cover
 ```
 
 The library includes test helpers for mocking Paddle API calls in your tests.
+
+### Integration Testing
+
+The library includes comprehensive tests against the real Paddle API to ensure reliability:
+
+```bash
+# Run integration tests with your sandbox key
+export PADDLE_SANDBOX_API_KEY="your_sandbox_key"
+mix test test/paddle_billing/e2e_test.exs --include e2e
+```
+
+For detailed testing documentation, see [TESTING.md](TESTING.md).
 
 ## Development
 

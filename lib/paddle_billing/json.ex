@@ -15,7 +15,9 @@ defmodule PaddleBilling.JSON do
   def decode(binary) when is_binary(binary) do
     try do
       # Try native :json first (available in OTP 27+)
-      {:ok, :json.decode(binary)}
+      result = :json.decode(binary)
+      # Convert :null to nil for consistency with Jason
+      {:ok, normalize_nulls(result)}
     rescue
       UndefinedFunctionError ->
         # Fallback to Jason
@@ -72,4 +74,15 @@ defmodule PaddleBilling.JSON do
       {:error, reason} -> raise Jason.EncodeError, value: term, message: to_string(reason)
     end
   end
+
+  # Recursively convert :null atoms to nil for compatibility with Jason
+  @spec normalize_nulls(term()) :: term()
+  defp normalize_nulls(:null), do: nil
+  defp normalize_nulls(value) when is_map(value) do
+    Enum.into(value, %{}, fn {k, v} -> {k, normalize_nulls(v)} end)
+  end
+  defp normalize_nulls(value) when is_list(value) do
+    Enum.map(value, &normalize_nulls/1)
+  end
+  defp normalize_nulls(value), do: value
 end

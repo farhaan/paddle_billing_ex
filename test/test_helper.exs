@@ -1,8 +1,19 @@
 ExUnit.start()
 
-# Set test configuration to avoid requiring real API keys during tests
-Application.put_env(:paddle_billing, :api_key, "pdl_test_123456789")
-Application.put_env(:paddle_billing, :environment, :sandbox)
+# Set test configuration to avoid requiring real API keys during unit tests
+# E2E tests will use environment variables for real API keys
+test_api_key = System.get_env("PADDLE_API_KEY") || 
+               System.get_env("PADDLE_SANDBOX_API_KEY") || 
+               "pdl_test_123456789"
+
+test_environment = case System.get_env("PADDLE_ENVIRONMENT") do
+  "live" -> :live
+  "production" -> :live
+  _ -> :sandbox
+end
+
+Application.put_env(:paddle_billing, :api_key, test_api_key)
+Application.put_env(:paddle_billing, :environment, test_environment)
 
 # Configure ExUnit for better test output
 ExUnit.configure(
@@ -168,6 +179,53 @@ defmodule PaddleBilling.TestHelpers do
           "generated_at" => DateTime.utc_now() |> DateTime.to_iso8601()
         })
     }
+  end
+
+  def create_e2e_config(override_opts \\ []) do
+    api_key = System.get_env("PADDLE_API_KEY") || 
+              System.get_env("PADDLE_SANDBOX_API_KEY") || 
+              raise """
+              
+              E2E tests require a Paddle API key to be set in environment variables.
+              
+              For sandbox testing, set:
+                export PADDLE_SANDBOX_API_KEY="pdl_sdbx_your_key_here"
+              
+              For live testing (not recommended), set:
+                export PADDLE_API_KEY="pdl_live_your_key_here"
+                export PADDLE_ENVIRONMENT="live"
+              
+              """
+
+    environment = case System.get_env("PADDLE_ENVIRONMENT") do
+      "live" -> :live
+      "production" -> :live
+      _ -> :sandbox
+    end
+
+    base_url = case environment do
+      :live -> "https://api.paddle.com"
+      :sandbox -> "https://sandbox-api.paddle.com"
+    end
+
+    base_config = %PaddleBilling.Config{
+      api_key: api_key,
+      environment: environment,
+      base_url: base_url,
+      timeout: 30_000,
+      retry: false
+    }
+
+    Enum.reduce(override_opts, base_config, fn {key, value}, config ->
+      Map.put(config, key, value)
+    end)
+  end
+
+  def skip_e2e_unless_configured do
+    case System.get_env("PADDLE_API_KEY") || System.get_env("PADDLE_SANDBOX_API_KEY") do
+      nil -> {:skip, "No Paddle API key configured for E2E tests"}
+      _key -> :ok
+    end
   end
 end
 

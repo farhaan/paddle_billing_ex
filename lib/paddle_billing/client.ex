@@ -309,14 +309,17 @@ defmodule PaddleBilling.Client do
   defp handle_success_response(nil, _headers), do: {:ok, nil}
 
   defp handle_success_response(body, headers) when is_binary(body) do
-    if content_type_is_json?(headers) or looks_like_json?(body) do
-      case JSON.decode(body) do
+    # Check if content is gzip compressed
+    decompressed_body = maybe_decompress_gzip(body)
+    
+    if content_type_is_json?(headers) or looks_like_json?(decompressed_body) do
+      case JSON.decode(decompressed_body) do
         {:ok, parsed} -> handle_parsed_success_response(parsed)
-        {:error, _jason_error} -> handle_json_decode_error(body, headers)
+        {:error, _jason_error} -> handle_json_decode_error(decompressed_body, headers)
       end
     else
       # Return plain text as-is
-      {:ok, body}
+      {:ok, decompressed_body}
     end
   end
 
@@ -403,5 +406,26 @@ defmodule PaddleBilling.Client do
       (String.starts_with?(trimmed, "[") and String.ends_with?(trimmed, "]"))
   end
 
+  @spec maybe_decompress_gzip(binary()) :: binary()
+  defp maybe_decompress_gzip(body) when is_binary(body) do
+    # Check if body starts with gzip magic number (1f 8b)
+    case body do
+      <<0x1f, 0x8b, _rest::binary>> ->
+        # It's gzipped, decompress it
+        try do
+          :zlib.gunzip(body)
+        rescue
+          _ -> 
+            # If decompression fails, return original body
+            body
+        end
+      
+      _ -> 
+        # Not gzipped, return as-is
+        body
+    end
+  end
+
+  defp maybe_decompress_gzip(body), do: body
 
 end
